@@ -1,23 +1,107 @@
 {
   "name": "dead-code-finder",
-  "displayName": "dead-code-finder",
+  "displayName": "Dead Code Finder",
   "description": "Find unused methods and functions in your code",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.99.0"
   },
   "categories": [
-    "Other"
+    "Programming Languages",
+    "Linters"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onLanguage:python"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "dead-code-finder.helloWorld",
-        "title": "Hello World"
+        "command": "deadCodeFinder.analyze",
+        "title": "Find Dead Code: Analyze Workspace"
+      },
+      {
+        "command": "deadCodeFinder.analyzeFile",
+        "title": "Find Dead Code: Analyze Current File"
+      },
+      {
+        "command": "deadCodeFinder.openDeadCode",
+        "title": "Find Dead Code: Open Dead Code Location"
       }
-    ]
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "deadCodeExplorer",
+          "name": "Dead Code"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "deadCodeFinder.analyze",
+          "when": "view == deadCodeExplorer",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "deadCodeFinder.openDeadCode",
+          "when": "view == deadCodeExplorer && viewItem == deadCodeItem",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "deadCodeFinder.analyzeFile",
+          "when": "resourceLangId == python",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Dead Code Finder",
+      "properties": {
+        "deadCodeFinder.minConfidence": {
+          "type": "number",
+          "default": 60,
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Minimum confidence threshold (0-100) for reporting dead code"
+        },
+        "deadCodeFinder.enableAutoAnalysis": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable automatic analysis on file save"
+        },
+        "deadCodeFinder.excludePatterns": {
+          "type": "array",
+          "default": [
+            "**/venv/**",
+            "**/node_modules/**",
+            "**/.*/**"
+          ],
+          "description": "Array of glob patterns to exclude from analysis"
+        },
+        "deadCodeFinder.whitelistFile": {
+          "type": "string",
+          "default": "",
+          "description": "Path to whitelist file for intentional dead code"
+        },
+        "deadCodeFinder.logLevel": {
+          "type": "string",
+          "default": "info",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
+          "description": "Log level for the extension"
+        }
+      }
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
