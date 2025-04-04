@@ -79,8 +79,118 @@ export async function executePythonCommand(
 ): Promise<ProcessResult> {
   // Try to get python path from VS Code Python extension
   const pythonConfig = vscode.workspace.getConfiguration("python");
-  const pythonPath =
+  let pythonPath =
     pythonConfig.get<string>("defaultInterpreterPath") || "python";
 
-  return executeCommand(pythonPath, args, options);
+  // Try multiple Python paths in sequence if the first one fails
+  // Start with most common paths that should work for most users
+  const pythonPaths = [
+    // VS Code configured Python (most reliable if set)
+    pythonPath,
+    // Standard system commands (should work for most users)
+    "python",
+    "python3",
+    // Common system paths
+    "/usr/bin/python3",
+    "/usr/bin/python",
+    "/usr/local/bin/python3",
+    "/usr/local/bin/python",
+  ];
+
+  // Add platform-specific paths
+  if (process.platform === "win32") {
+    // Windows Python installations
+    pythonPaths.push(
+      "C:\\Python39\\python.exe",
+      "C:\\Python310\\python.exe",
+      "C:\\Python311\\python.exe"
+    );
+  } else if (process.platform === "darwin") {
+    // macOS homebrew and other common paths
+    pythonPaths.push("/opt/homebrew/bin/python3", "/opt/local/bin/python3");
+  }
+
+  // Add virtual env paths - used by all Python version managers
+  if (process.env.VIRTUAL_ENV) {
+    // If a virtual environment is active, prioritize its Python
+    pythonPaths.unshift(
+      `${process.env.VIRTUAL_ENV}/bin/python`,
+      `${process.env.VIRTUAL_ENV}/Scripts/python.exe` // For Windows
+    );
+  }
+
+  // Try each Python executable in sequence
+  for (const path of pythonPaths) {
+    try {
+      const result = await executeCommand(path, args, options);
+      // If successful or has any output (even with errors), return the result
+      if (result.code === 0 || result.code === 3 || result.stdout.length > 0) {
+        // Remember this path for future calls if it's valid
+        if (
+          path.startsWith("/") ||
+          path.startsWith("C:\\") ||
+          !path.includes("/")
+        ) {
+          try {
+            pythonConfig.update(
+              "defaultInterpreterPath",
+              path,
+              vscode.ConfigurationTarget.Global
+            );
+          } catch (error) {
+            // Ignore errors updating config
+          }
+        }
+        return result;
+      }
+    } catch (error) {
+      // Continue to the next path
+    }
+  }
+
+  // Add version managers only as a last resort
+  if (process.env.HOME) {
+    // Common version manager paths
+    const versionManagerPaths = [];
+
+    // pyenv
+    if (process.platform !== "win32") {
+      versionManagerPaths.push(
+        `${process.env.HOME}/.pyenv/shims/python`,
+        `${process.env.HOME}/.pyenv/shims/python3`
+      );
+    }
+
+    // Try version manager paths
+    for (const path of versionManagerPaths) {
+      try {
+        const result = await executeCommand(path, args, options);
+        if (
+          result.code === 0 ||
+          result.code === 3 ||
+          result.stdout.length > 0
+        ) {
+          try {
+            pythonConfig.update(
+              "defaultInterpreterPath",
+              path,
+              vscode.ConfigurationTarget.Global
+            );
+          } catch (error) {
+            // Ignore errors updating config
+          }
+          return result;
+        }
+      } catch (error) {
+        // Continue to the next path
+      }
+    }
+  }
+
+  // If all paths failed, return a more descriptive error
+  return {
+    stdout: "",
+    stderr: `Failed to execute Python command. Could not find a working Python interpreter with required packages.`,
+    code: null,
+  };
 }

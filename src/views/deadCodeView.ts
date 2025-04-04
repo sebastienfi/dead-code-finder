@@ -30,8 +30,48 @@ export class DeadCodeTreeItem extends vscode.TreeItem {
 
     // Set properties based on type
     if (type === DeadCodeTreeItemType.FILE) {
+      this.iconPath = {
+        light: path.join(
+          __filename,
+          "..",
+          "..",
+          "..",
+          "resources",
+          "light",
+          "file.svg"
+        ),
+        dark: path.join(
+          __filename,
+          "..",
+          "..",
+          "..",
+          "resources",
+          "dark",
+          "file.svg"
+        ),
+      };
       this.description = "";
     } else if (deadCodeItem) {
+      this.iconPath = {
+        light: path.join(
+          __filename,
+          "..",
+          "..",
+          "..",
+          "resources",
+          "light",
+          "method.svg"
+        ),
+        dark: path.join(
+          __filename,
+          "..",
+          "..",
+          "..",
+          "resources",
+          "dark",
+          "method.svg"
+        ),
+      };
       this.description = `${deadCodeItem.type} (${deadCodeItem.confidence}% confidence)`;
       this.tooltip =
         deadCodeItem.details ||

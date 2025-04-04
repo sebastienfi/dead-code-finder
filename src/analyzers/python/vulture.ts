@@ -34,21 +34,86 @@ export async function isVultureInstalled(): Promise<boolean> {
 export async function installVulture(): Promise<boolean> {
   try {
     Logger.info("Installing Vulture...");
-    const result = await executePythonCommand([
-      "-m",
-      "pip",
-      "install",
-      "vulture",
-    ]);
-    if (result.code === 0) {
-      Logger.info("Vulture installed successfully");
-      return true;
-    } else {
-      Logger.error(`Failed to install Vulture: ${result.stderr}`);
-      return false;
-    }
+
+    // Show progress notification to the user
+    return await vscode.window.withProgress(
+      {
+        location: vscode.ProgressLocation.Notification,
+        title: "Installing Vulture...",
+        cancellable: false,
+      },
+      async (progress) => {
+        progress.report({ increment: 0, message: "Starting installation..." });
+
+        // Try with pip first
+        let result = await executePythonCommand([
+          "-m",
+          "pip",
+          "install",
+          "vulture",
+          "--user", // Add --user flag to avoid permission issues
+        ]);
+
+        // If pip fails, try with pip3
+        if (result.code !== 0) {
+          progress.report({
+            increment: 30,
+            message: "Trying alternate installation method...",
+          });
+
+          // Try with pip3 if pip fails
+          result = await executePythonCommand([
+            "-m",
+            "pip3",
+            "install",
+            "vulture",
+            "--user",
+          ]);
+        }
+
+        progress.report({
+          increment: 70,
+          message: "Verifying installation...",
+        });
+
+        // Verify installation was successful
+        const verifyResult = await isVultureInstalled();
+
+        if (result.code === 0 && verifyResult) {
+          progress.report({ increment: 100, message: "Installation complete" });
+          Logger.info("Vulture installed successfully");
+          vscode.window.showInformationMessage(
+            "Vulture installed successfully"
+          );
+          return true;
+        } else {
+          Logger.error(`Failed to install Vulture: ${result.stderr}`);
+          // Show detailed error message with installation instructions
+          vscode.window
+            .showErrorMessage(
+              "Failed to install Vulture automatically. Please try installing manually with 'pip install vulture' in your terminal.",
+              "Open Terminal"
+            )
+            .then((selection) => {
+              if (selection === "Open Terminal") {
+                const terminal = vscode.window.createTerminal(
+                  "Vulture Installation"
+                );
+                terminal.show();
+                terminal.sendText("pip install vulture --user");
+              }
+            });
+          return false;
+        }
+      }
+    );
   } catch (error) {
     Logger.error("Error installing Vulture", error as Error);
+    vscode.window.showErrorMessage(
+      `Error installing Vulture: ${
+        (error as Error).message
+      }. Please try installing manually with 'pip install vulture'.`
+    );
     return false;
   }
 }
@@ -115,7 +180,9 @@ export async function runVultureAnalysis(
 /**
  * Parse the output from Vulture into DeadCodeItem objects
  */
-function parseVultureOutput(processResult: ProcessResult): DeadCodeItem[] {
+export function parseVultureOutput(
+  processResult: ProcessResult
+): DeadCodeItem[] {
   const items: DeadCodeItem[] = [];
 
   if (!processResult.stdout) {

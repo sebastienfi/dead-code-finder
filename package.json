@@ -2,9 +2,14 @@
   "name": "dead-code-finder",
   "displayName": "Dead Code Finder",
   "description": "Find unused methods and functions in your code",
+  "publisher": "sebastienfi",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sebastienfi/dead-code-finder.git"
+  },
   "version": "0.0.1",
   "engines": {
-    "vscode": "^1.99.0"
+    "vscode": "^1.96.0"
   },
   "categories": [
     "Programming Languages",
@@ -18,15 +23,33 @@
     "commands": [
       {
         "command": "deadCodeFinder.analyze",
-        "title": "Find Dead Code: Analyze Workspace"
+        "title": "Find Dead Code: Analyze Workspace",
+        "icon": "$(search)"
       },
       {
         "command": "deadCodeFinder.analyzeFile",
-        "title": "Find Dead Code: Analyze Current File"
+        "title": "Find Dead Code: Analyze Current File",
+        "icon": "$(file-code)"
       },
       {
         "command": "deadCodeFinder.openDeadCode",
-        "title": "Find Dead Code: Open Dead Code Location"
+        "title": "Find Dead Code: Open Dead Code Location",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "deadCodeFinder.generateWhitelist",
+        "title": "Find Dead Code: Generate Whitelist File",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "deadCodeFinder.whitelistItem",
+        "title": "Find Dead Code: Add Item to Whitelist",
+        "icon": "$(check)"
+      },
+      {
+        "command": "deadCodeFinder.openSettings",
+        "title": "Find Dead Code: Open Settings",
+        "icon": "$(gear)"
       }
     ],
     "views": {
@@ -42,7 +65,17 @@
         {
           "command": "deadCodeFinder.analyze",
           "when": "view == deadCodeExplorer",
-          "group": "navigation"
+          "group": "navigation@1"
+        },
+        {
+          "command": "deadCodeFinder.generateWhitelist",
+          "when": "view == deadCodeExplorer",
+          "group": "navigation@2"
+        },
+        {
+          "command": "deadCodeFinder.openSettings",
+          "when": "view == deadCodeExplorer",
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [
@@ -50,6 +83,11 @@
           "command": "deadCodeFinder.openDeadCode",
           "when": "view == deadCodeExplorer && viewItem == deadCodeItem",
           "group": "navigation"
+        },
+        {
+          "command": "deadCodeFinder.whitelistItem",
+          "when": "view == deadCodeExplorer && viewItem == deadCodeItem",
+          "group": "1_modification"
         }
       ],
       "editor/context": [
@@ -74,6 +112,11 @@
           "type": "boolean",
           "default": false,
           "description": "Enable automatic analysis on file save"
+        },
+        "deadCodeFinder.showDiagnostics": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show inline diagnostics for dead code in editor"
         },
         "deadCodeFinder.excludePatterns": {
           "type": "array",
@@ -108,6 +151,7 @@
     "compile": "webpack",
     "watch": "webpack --watch",
     "package": "webpack --mode production --devtool hidden-source-map",
+    "package:production": "vsce package -o .",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
@@ -118,7 +162,7 @@
     "@types/glob": "^8.1.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.17.30",
-    "@types/vscode": "^1.99.0",
+    "@types/vscode": "^1.96.0",
     "@typescript-eslint/eslint-plugin": "^8.28.0",
     "@typescript-eslint/parser": "^8.28.0",
     "@vscode/test-cli": "^0.0.10",
@@ -127,12 +171,12 @@
     "ts-loader": "^9.5.2",
     "typescript": "^5.8.2",
     "webpack": "^5.98.0",
-    "webpack-cli": "^6.0.1"
+    "webpack-cli": "^6.0.1",
+    "vscode": "^1.1.37"
   },
   "dependencies": {
     "child_process": "^1.0.2",
     "fs": "^0.0.1-security",
-    "path": "^0.12.7",
-    "vscode": "^1.1.37"
+    "path": "^0.12.7"
   }
 }

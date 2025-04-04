@@ -1,15 +1,14 @@
 import * as vscode from "vscode";
 import { DeadCodeItem } from "../analyzers/analyzer";
-import { PythonAnalyzer } from "../analyzers/python/pythonAnalyzer";
 import { Logger } from "../utils/logging";
 
 /**
- * Register navigation commands for dead code
+ * Register commands for navigating to dead code
  */
 export function registerNavigationCommands(
   context: vscode.ExtensionContext
 ): void {
-  // Command to open a dead code item
+  // Register command to open a dead code item
   const openDeadCodeCommand = vscode.commands.registerCommand(
     "deadCodeFinder.openDeadCode",
     async (item: DeadCodeItem) => {
@@ -17,37 +16,57 @@ export function registerNavigationCommands(
     }
   );
   context.subscriptions.push(openDeadCodeCommand);
+
+  // Register command to open settings
+  const openSettingsCommand = vscode.commands.registerCommand(
+    "deadCodeFinder.openSettings",
+    async () => {
+      await openSettings();
+    }
+  );
+  context.subscriptions.push(openSettingsCommand);
 }
 
 /**
- * Open a dead code item in the editor
+ * Open a document at the line containing dead code
  */
-export async function openDeadCode(item: DeadCodeItem): Promise<void> {
+async function openDeadCode(item: DeadCodeItem): Promise<void> {
   try {
-    Logger.debug(
-      `Opening dead code: ${item.name} in ${item.filePath}:${item.lineNumber}`
-    );
+    Logger.info(`Opening file at line ${item.lineNumber}: ${item.filePath}`);
 
-    // Get analyzer for this item's language (currently only Python supported)
-    const analyzer = new PythonAnalyzer();
+    // Create a URI for the file
+    const uri = vscode.Uri.file(item.filePath);
 
-    // Get URI and range for the item
-    const uri = analyzer.getDeadCodeUri(item);
-    const range = analyzer.getDeadCodeRange(item);
-
-    // Open the document and show the range
+    // Open the document
     const document = await vscode.workspace.openTextDocument(uri);
     const editor = await vscode.window.showTextDocument(document);
 
-    // Reveal the range in the editor
+    // Get zero-based line number
+    const lineNumber = Math.max(0, item.lineNumber - 1);
+
+    // Create a range for the line
+    const range = document.lineAt(lineNumber).range;
+
+    // Reveal the line in the editor
     editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
 
-    // Set selection to the range
-    editor.selection = new vscode.Selection(range.start, range.start);
+    // Select the line
+    editor.selection = new vscode.Selection(range.start, range.end);
   } catch (error) {
-    Logger.error(`Error opening dead code: ${item.name}`, error as Error);
+    Logger.error(`Error opening dead code location`, error as Error);
     vscode.window.showErrorMessage(
-      `Error opening dead code: ${(error as Error).message}`
+      `Error opening file: ${(error as Error).message}`
     );
   }
+}
+
+/**
+ * Open extension settings
+ */
+async function openSettings(): Promise<void> {
+  Logger.info("Opening Dead Code Finder settings");
+  await vscode.commands.executeCommand(
+    "workbench.action.openSettings",
+    "deadCodeFinder"
+  );
 }

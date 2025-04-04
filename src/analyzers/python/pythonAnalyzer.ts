@@ -27,10 +27,49 @@ export class PythonAnalyzer implements IAnalyzer {
     if (!installed) {
       const message = "Vulture is not installed. Would you like to install it?";
       const install = "Install";
-      const response = await vscode.window.showWarningMessage(message, install);
+      const manualInstall = "Manual Install";
+      const showInstructions = "Show Instructions";
+      const cancel = "Cancel";
+
+      const response = await vscode.window.showWarningMessage(
+        message,
+        install,
+        manualInstall,
+        showInstructions,
+        cancel
+      );
 
       if (response === install) {
-        return this.installDependencies();
+        const success = await this.installDependencies();
+        if (!success) {
+          vscode.window.showErrorMessage(
+            "Automatic installation failed. Please try installing manually."
+          );
+        }
+
+        // Recheck if Vulture is now installed
+        return await isVultureInstalled();
+      } else if (response === manualInstall) {
+        // Open a terminal for manual installation
+        const terminal = vscode.window.createTerminal("Vulture Installation");
+        terminal.show();
+        terminal.sendText("pip install vulture --user");
+
+        vscode.window.showInformationMessage(
+          "After installation completes, please try analyzing again."
+        );
+
+        return false;
+      } else if (response === showInstructions) {
+        // Show a more detailed information message with instructions
+        vscode.window.showInformationMessage(
+          "To install Vulture manually:\n\n" +
+            "1. Open a terminal\n" +
+            "2. Run: pip install vulture --user\n" +
+            "3. Restart VS Code\n\n" +
+            "If that doesn't work, try with pip3 instead of pip."
+        );
+        return false;
       }
 
       return false;
@@ -105,14 +144,24 @@ export class PythonAnalyzer implements IAnalyzer {
       return pythonFiles;
     }
 
+    // Get configuration for exclude patterns
+    const config = vscode.workspace.getConfiguration("deadCodeFinder");
+    const excludePatterns = config.get<string[]>("excludePatterns", [
+      "**/venv/**",
+      "**/node_modules/**",
+      "**/.*/**",
+    ]);
+
+    // Join exclude patterns for the findFiles exclude parameter
+    const excludePattern =
+      excludePatterns.length > 0 ? `{${excludePatterns.join(",")}}` : null;
+    Logger.debug(`Using exclude pattern: ${excludePattern}`);
+
     // Find Python files
     for (const folder of workspaceFolders) {
       try {
         const pattern = new vscode.RelativePattern(folder, "**/*.py");
-        const files = await vscode.workspace.findFiles(
-          pattern,
-          "**/node_modules/**"
-        );
+        const files = await vscode.workspace.findFiles(pattern, excludePattern);
 
         // Convert to path strings
         for (const file of files) {
@@ -143,14 +192,23 @@ export class PythonAnalyzer implements IAnalyzer {
         return [];
       }
 
+      // Get configuration for exclude patterns
+      const config = vscode.workspace.getConfiguration("deadCodeFinder");
+      const excludePatterns = config.get<string[]>("excludePatterns", [
+        "**/venv/**",
+        "**/node_modules/**",
+        "**/.*/**",
+      ]);
+
+      // Join exclude patterns for the findFiles exclude parameter
+      const excludePattern =
+        excludePatterns.length > 0 ? `{${excludePatterns.join(",")}}` : null;
+
       const pattern = new vscode.RelativePattern(
         folder,
         path.join(path.relative(folder.uri.fsPath, folderPath), "**/*.py")
       );
-      const files = await vscode.workspace.findFiles(
-        pattern,
-        "**/node_modules/**"
-      );
+      const files = await vscode.workspace.findFiles(pattern, excludePattern);
 
       return files.map((file) => file.fsPath);
     } catch (error) {
