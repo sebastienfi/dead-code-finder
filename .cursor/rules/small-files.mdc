@@ -1,0 +1,10 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Keep files small
+
+- If a file grows over 600 lines, refactor it into smaller files.
+- For example, you can convert the file into a folder.

@@ -1,0 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Working with an implementation plan
+
+- Usually the file is located at the root of the project, and name `implementation-plan.md`.
+- Update the document to report on your progress. 
+- Remove details of code once you've implemented in files.
+- Use sequential thinking mcp tool if you need to resolve multi step problems.
+- Cradt the implmentation plan with great details because it will be implemented by an expert developper who don't know anything about our project.
