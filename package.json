@@ -7,7 +7,7 @@
     "type": "git",
     "url": "https://github.com/sebastienfi/dead-code-finder.git"
   },
-  "version": "0.0.2",
+  "version": "0.0.3",
   "engines": {
     "vscode": "^1.96.0"
   },
@@ -142,6 +142,11 @@
             "error"
           ],
           "description": "Log level for the extension"
+        },
+        "deadCodeFinder.vulturePath": {
+          "type": "string",
+          "default": "",
+          "description": "Custom path to the Vulture executable (e.g., ~/.local/bin/vulture)"
         }
       }
     }
@@ -162,17 +167,19 @@
     "@types/glob": "^8.1.0",
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.17.30",
+    "@types/sinon": "^17.0.4",
     "@types/vscode": "^1.96.0",
     "@typescript-eslint/eslint-plugin": "^8.28.0",
     "@typescript-eslint/parser": "^8.28.0",
     "@vscode/test-cli": "^0.0.10",
     "@vscode/test-electron": "^2.4.1",
     "eslint": "^9.23.0",
+    "sinon": "^20.0.0",
     "ts-loader": "^9.5.2",
     "typescript": "^5.8.2",
+    "vscode": "^1.1.37",
     "webpack": "^5.98.0",
-    "webpack-cli": "^6.0.1",
-    "vscode": "^1.1.37"
+    "webpack-cli": "^6.0.1"
   },
   "dependencies": {
     "child_process": "^1.0.2",
