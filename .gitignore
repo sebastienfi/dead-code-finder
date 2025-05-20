@@ -1,3 +1,8 @@
 # Typescript
 node_modules
 
+# VSCode
+.vscode-test
+
+# Compiled output
+out
