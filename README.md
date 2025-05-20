@@ -31,12 +31,14 @@ Currently supports:
 3. Click on the '...' menu (top-right) and select 'Install from VSIX...'
 4. Navigate to the generated .vsix file and select it
 
-### From Marketplace (Coming Soon)
+### From Marketplace
 
 1. Open VSCode
 2. Go to Extensions view (Ctrl+Shift+X)
 3. Search for "Dead Code Finder"
 4. Click Install
+
+... or navigate to the [Marketplace](https://marketplace.visualstudio.com/items?itemName=sebastienfi.dead-code-finder) and click install.
 
 ## Usage
 
@@ -78,6 +80,21 @@ This extension contributes the following settings:
 * `deadCodeFinder.excludePatterns`: Glob patterns for files to exclude from analysis
 * `deadCodeFinder.whitelistFile`: Path to whitelist file for intentional dead code
 * `deadCodeFinder.logLevel`: Log level for the extension (debug, info, warn, error)
+* `deadCodeFinder.vulturePath`: Custom path to the Vulture executable (e.g., ~/.local/bin/vulture)
+
+## Vulture Integration
+
+This extension uses [Vulture](https://github.com/jendrikseipp/vulture) for Python dead code detection. It now supports multiple ways to detect and run Vulture:
+
+1. Using the Python module via `pip` (traditional method)
+2. Using the binary directly if it's available in your PATH
+3. Using the `uvx` command if you have [uv](https://github.com/astral-sh/uv) installed
+4. Using a custom binary path that you specify in the settings
+
+If Vulture is not found automatically, the extension will prompt you to either:
+- Install it automatically via pip
+- Install it manually 
+- Specify a custom path to your existing Vulture installation
 
 ## Development
 
@@ -126,7 +143,7 @@ The repository includes sample Python projects with intentional dead code for te
 To create a VSIX file for installation:
 
 ```
-npm run package
+npm run package:production
 ```
 
 This creates a `.vsix` file in the root directory that can be installed in VSCode.
