@@ -25,9 +25,11 @@ export class PythonAnalyzer implements IAnalyzer {
   public async isAvailable(): Promise<boolean> {
     const installed = await isVultureInstalled();
     if (!installed) {
-      const message = "Vulture is not installed. Would you like to install it?";
+      const message =
+        "Vulture is not installed or not found in any of the expected locations. Would you like to install it or configure a custom path?";
       const install = "Install";
       const manualInstall = "Manual Install";
+      const configureCustomPath = "Configure Custom Path";
       const showInstructions = "Show Instructions";
       const cancel = "Cancel";
 
@@ -35,6 +37,7 @@ export class PythonAnalyzer implements IAnalyzer {
         message,
         install,
         manualInstall,
+        configureCustomPath,
         showInstructions,
         cancel
       );
@@ -43,7 +46,7 @@ export class PythonAnalyzer implements IAnalyzer {
         const success = await this.installDependencies();
         if (!success) {
           vscode.window.showErrorMessage(
-            "Automatic installation failed. Please try installing manually."
+            "Automatic installation failed. Please try installing manually or configure a custom path."
           );
         }
 
@@ -60,14 +63,42 @@ export class PythonAnalyzer implements IAnalyzer {
         );
 
         return false;
+      } else if (response === configureCustomPath) {
+        // Prompt user for a custom path
+        const customPath = await vscode.window.showInputBox({
+          prompt: "Enter the path to your Vulture binary",
+          placeHolder: "e.g. ~/.local/bin/vulture",
+          validateInput: (value) => {
+            return value && value.trim() ? null : "Path cannot be empty";
+          },
+        });
+
+        if (customPath) {
+          // Save the custom path in settings
+          const config = vscode.workspace.getConfiguration("deadCodeFinder");
+          await config.update(
+            "vulturePath",
+            customPath,
+            vscode.ConfigurationTarget.Global
+          );
+          vscode.window.showInformationMessage(
+            `Custom Vulture path set to: ${customPath}`
+          );
+
+          // Recheck if Vulture is now recognized
+          return await isVultureInstalled();
+        }
+
+        return false;
       } else if (response === showInstructions) {
         // Show a more detailed information message with instructions
         vscode.window.showInformationMessage(
-          "To install Vulture manually:\n\n" +
-            "1. Open a terminal\n" +
-            "2. Run: pip install vulture --user\n" +
-            "3. Restart VS Code\n\n" +
-            "If that doesn't work, try with pip3 instead of pip."
+          "To use Vulture with this extension, you have several options:\n\n" +
+            "1. Install with pip: pip install vulture --user\n" +
+            "2. Install with uv: uv pip install vulture\n" +
+            "3. Use uvx if you have it installed\n" +
+            "4. Configure a custom path to your vulture binary in Settings > Dead Code Finder > Vulture Path\n\n" +
+            "After installation or configuration, try analyzing again."
         );
         return false;
       }
@@ -94,7 +125,7 @@ export class PythonAnalyzer implements IAnalyzer {
       return {
         deadCodeItems: [],
         errors: [
-          "Vulture is not installed. Please install it to use the Python analyzer.",
+          "Vulture is not installed or not found. Please install it or configure a custom path to use the Python analyzer.",
         ],
         warnings: [],
         success: false,

@@ -21,9 +21,52 @@ const VULTURE_OUTPUT_PATTERN =
  */
 export async function isVultureInstalled(): Promise<boolean> {
   try {
-    const result = await executePythonCommand(["-m", "pip", "show", "vulture"]);
-    return result.code === 0;
+    // 1. Check via pip (current method)
+    const pipResult = await executePythonCommand([
+      "-m",
+      "pip",
+      "show",
+      "vulture",
+    ]);
+    if (pipResult.code === 0) {
+      Logger.debug("Vulture found via pip");
+      return true;
+    }
+
+    // 2. Check if vulture is directly available in PATH
+    try {
+      const directResult = await executeCommand("vulture", ["--version"]);
+      if (directResult.code === 0) {
+        Logger.debug("Vulture found directly in PATH");
+        return true;
+      }
+    } catch (error) {
+      // Silently continue to other methods
+    }
+
+    // 3. Check for availability via uvx
+    try {
+      const uvxResult = await executeCommand("uvx", ["vulture", "--version"]);
+      if (uvxResult.code === 0) {
+        Logger.debug("Vulture found via uvx");
+        return true;
+      }
+    } catch (error) {
+      // Silently continue to other methods
+    }
+
+    // 4. Check for custom binary path
+    const config = vscode.workspace.getConfiguration("deadCodeFinder");
+    const customBinaryPath = config.get<string>("vulturePath");
+    if (customBinaryPath && fs.existsSync(customBinaryPath)) {
+      Logger.debug(`Found custom Vulture binary at: ${customBinaryPath}`);
+      return true;
+    }
+
+    Logger.debug("Vulture not found by any method");
+    return false;
   } catch (error) {
+    Logger.error("Error checking for Vulture", error as Error);
     return false;
   }
 }
@@ -119,6 +162,60 @@ export async function installVulture(): Promise<boolean> {
 }
 
 /**
+ * Determine the best way to run Vulture
+ */
+async function determineVultureMethod(): Promise<{
+  method: "pip" | "uvx" | "direct" | "custom";
+  path?: string;
+}> {
+  const config = vscode.workspace.getConfiguration("deadCodeFinder");
+  const customBinaryPath = config.get<string>("vulturePath");
+
+  // 1. Check custom path first, if configured
+  if (customBinaryPath && fs.existsSync(customBinaryPath)) {
+    return { method: "custom", path: customBinaryPath };
+  }
+
+  // 2. Check pip
+  try {
+    const pipResult = await executePythonCommand([
+      "-m",
+      "pip",
+      "show",
+      "vulture",
+    ]);
+    if (pipResult.code === 0) {
+      return { method: "pip" };
+    }
+  } catch (error) {
+    // Silently continue to other methods
+  }
+
+  // 3. Check direct PATH access
+  try {
+    const directResult = await executeCommand("vulture", ["--version"]);
+    if (directResult.code === 0) {
+      return { method: "direct" };
+    }
+  } catch (error) {
+    // Silently continue to other methods
+  }
+
+  // 4. Check uvx
+  try {
+    const uvxResult = await executeCommand("uvx", ["vulture", "--version"]);
+    if (uvxResult.code === 0) {
+      return { method: "uvx" };
+    }
+  } catch (error) {
+    // Silently continue
+  }
+
+  // Default to pip method (which will fail if not available)
+  return { method: "pip" };
+}
+
+/**
  * Run Vulture analysis on the given paths
  */
 export async function runVultureAnalysis(
@@ -133,25 +230,64 @@ export async function runVultureAnalysis(
   };
 
   try {
-    // Prepare vulture command
-    const args = [
-      "-m",
-      "vulture",
-      "--min-confidence",
-      minConfidence.toString(),
-      ...paths,
-    ];
-
-    // Get whitelist file if specified
+    // Get configuration
     const config = vscode.workspace.getConfiguration("deadCodeFinder");
     const whitelistFile = config.get<string>("whitelistFile");
+
+    // Determine how to run vulture
+    const vultureMethod = await determineVultureMethod();
+    Logger.info(`Running Vulture using method: ${vultureMethod.method}`);
+
+    let processResult: ProcessResult;
+
+    // Prepare args common to all methods
+    const commonArgs = ["--min-confidence", minConfidence.toString()];
+
+    // Add whitelist file if specified and exists
     if (whitelistFile && fs.existsSync(whitelistFile)) {
-      args.push(whitelistFile);
+      commonArgs.push(whitelistFile);
     }
 
-    // Run vulture
-    Logger.debug(`Running Vulture with args: ${args.join(" ")}`);
-    const processResult = await executePythonCommand(args);
+    // Add the paths to analyze
+    const fullArgs = [...commonArgs, ...paths];
+
+    // Run with the appropriate method
+    switch (vultureMethod.method) {
+      case "custom":
+        Logger.debug(
+          `Running custom Vulture binary: ${vultureMethod.path} ${fullArgs.join(
+            " "
+          )}`
+        );
+        processResult = await executeCommand(vultureMethod.path!, fullArgs);
+        break;
+
+      case "direct":
+        Logger.debug(`Running Vulture directly: vulture ${fullArgs.join(" ")}`);
+        processResult = await executeCommand("vulture", fullArgs);
+        break;
+
+      case "uvx":
+        Logger.debug(
+          `Running Vulture via uvx: uvx vulture ${fullArgs.join(" ")}`
+        );
+        processResult = await executeCommand("uvx", ["vulture", ...fullArgs]);
+        break;
+
+      case "pip":
+      default:
+        Logger.debug(
+          `Running Vulture as Python module: python -m vulture ${fullArgs.join(
+            " "
+          )}`
+        );
+        processResult = await executePythonCommand([
+          "-m",
+          "vulture",
+          ...fullArgs,
+        ]);
+        break;
+    }
 
     // Check for errors
     if (processResult.code !== 0 && processResult.code !== 3) {
